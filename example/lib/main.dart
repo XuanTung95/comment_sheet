@@ -1,4 +1,5 @@
 import 'package:comment_sheet/comment_sheet.dart';
+import 'package:example/screen_sheet_demo.dart';
 import 'package:flutter/material.dart';
 import 'package:sliver_tools/sliver_tools.dart';
 
@@ -67,14 +68,8 @@ class _MyHomePageState extends State<MyHomePage> {
                                 buildSliverList(),
                               ],
                               grabbingPosition: WidgetPosition.above,
-                              calculateTopPosition: (
-                                CommentSheetInfo info,
-                              ) {
-                                if (info.currentTop < 500) {
-                                  return 200;
-                                }
-                                return 600;
-                              },
+                              initTopPosition: 200,
+                              calculateTopPosition: calculateTopPosition,
                               scrollController: scrollController,
                               grabbing: Builder(builder: (context) {
                                 return buildGrabbing(context);
@@ -88,15 +83,38 @@ class _MyHomePageState extends State<MyHomePage> {
                                 BuildContext context,
                                 CommentSheetInfo info,
                               ) {
-                                if (info.currentTop > 700) {
+                                print("On Pointer Up");
+                              },
+                              onAnimationComplete: (
+                                BuildContext context,
+                                CommentSheetInfo info,
+                              ) {
+                                print("onAnimationComplete");
+                                if (info.currentTop >=
+                                    info.size.maxHeight - 100) {
                                   Navigator.of(context).pop();
                                 }
                               },
                               commentSheetController: commentSheetController,
                               child: const Placeholder(),
+                              backgroundBuilder: (context) {
+                                return Container(
+                                  color: const Color(0xFF0F0F0F),
+                                  margin: const EdgeInsets.only(top: 20),
+                                );
+                              },
                             );
                           },
                         );
+                      },
+                    ),
+                    ListTile(
+                      title: const Text("Show Sheet in Stack"),
+                      onTap: () {
+                        Navigator.push(context,
+                            MaterialPageRoute(builder: (context) {
+                          return ScreenSheetDemo();
+                        }));
                       },
                     ),
                   ],
@@ -119,17 +137,63 @@ class _MyHomePageState extends State<MyHomePage> {
     );
   }
 
+  double calculateTopPosition(
+    CommentSheetInfo info,
+  ) {
+    final vy = info.velocity.getVelocity().pixelsPerSecond.dy;
+    print("vy = $vy");
+    final top = info.currentTop;
+    if (top > 200) {
+      if (vy > 0) {
+        return info.size.maxHeight - 100;
+      } else if (vy < -500) {
+        return 0;
+      }
+      return 200;
+    }
+    if (top == 200) {
+      return 200;
+    } else if (top < 100) {
+      return 0;
+    } else {
+      if (vy < -100) {
+        return 0;
+      }
+    }
+    return 200;
+  }
+
   Widget buildGrabbing(BuildContext context) {
+    return GrabbingWidget();
+  }
+
+  Widget buildSliverList() {
+    return SliverClip(
+      child: SliverList(
+          delegate: SliverChildBuilderDelegate((context, index) {
+        return ListItemWidget();
+      }, childCount: 10)),
+    );
+  }
+}
+
+class GrabbingWidget extends StatelessWidget {
+  const GrabbingWidget({
+    Key? key,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
     return Container(
-      height: 120,
       decoration: const BoxDecoration(
         color: Color(0xFF0F0F0F),
+        // color: Colors.red,
         borderRadius: BorderRadius.only(
           topLeft: Radius.circular(12),
           topRight: Radius.circular(12),
         ),
       ),
-      padding: EdgeInsets.only(top: 10, bottom: 2),
+      padding: EdgeInsets.only(top: 10),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -137,7 +201,9 @@ class _MyHomePageState extends State<MyHomePage> {
             width: 40,
             height: 4,
             margin: EdgeInsets.only(top: 4),
-            decoration: BoxDecoration(color: Colors.white60, borderRadius: BorderRadius.circular(100)),
+            decoration: BoxDecoration(
+                color: Colors.white60,
+                borderRadius: BorderRadius.circular(100)),
           ),
           Container(
             child: Row(
@@ -195,15 +261,6 @@ class _MyHomePageState extends State<MyHomePage> {
       ),
     );
   }
-
-  Widget buildSliverList() {
-    return SliverClip(
-      child: SliverList(
-          delegate: SliverChildBuilderDelegate((context, index) {
-        return ListItemWidget();
-      }, childCount: 10)),
-    );
-  }
 }
 
 class ListItemWidget extends StatelessWidget {
@@ -222,7 +279,8 @@ class ListItemWidget extends StatelessWidget {
         child: Container(
           color: Color(0xFF0F0F0F),
           width: double.infinity,
-          padding: const EdgeInsets.only(top: 12, bottom: 0, left: 10, right: 10),
+          padding:
+              const EdgeInsets.only(top: 12, bottom: 0, left: 10, right: 10),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -242,23 +300,44 @@ class ListItemWidget extends StatelessWidget {
                   children: [
                     Text(
                       'Andrea Quintanilla * 3 tháng trước',
-                      style: TextStyle(fontSize: 10, fontWeight: FontWeight.w400, color: Color(0xFFAEAEAE)),
+                      style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w400,
+                          color: Color(0xFFAEAEAE)),
                     ),
                     Padding(
                       padding: const EdgeInsets.only(top: 6, bottom: 12),
                       child: Text(
                         'Que buen trabajo, que buenos enganches, genial!!!!  MTV la tenes adentro, jajaja. Saludos cordiales desde Buenos Aires, Argentina, Argentina, Argentina!',
-                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w400, color: Color(0xFFF6F6F6)),
+                        style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w400,
+                            color: Color(0xFFF6F6F6)),
                       ),
                     ),
-                    Row(children: [
-                      Icon(Icons.thumb_up_outlined, size: 15, color: Colors.white,),
-                      Padding(
-                        padding: const EdgeInsets.only(left: 16.0, right: 16.0),
-                        child: Icon(Icons.thumb_down_alt_outlined, size: 15, color: Colors.white,),
-                      ),
-                      Icon(Icons.comment_outlined, size: 15, color: Colors.white,),
-                    ],)
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.thumb_up_outlined,
+                          size: 15,
+                          color: Colors.white,
+                        ),
+                        Padding(
+                          padding:
+                              const EdgeInsets.only(left: 16.0, right: 16.0),
+                          child: Icon(
+                            Icons.thumb_down_alt_outlined,
+                            size: 15,
+                            color: Colors.white,
+                          ),
+                        ),
+                        Icon(
+                          Icons.comment_outlined,
+                          size: 15,
+                          color: Colors.white,
+                        ),
+                      ],
+                    )
                   ],
                 ),
               )

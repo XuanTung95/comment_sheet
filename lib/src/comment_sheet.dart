@@ -1,6 +1,7 @@
 
 import 'dart:math' as math;
 import 'package:flutter/gestures.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/widgets.dart';
 
 import 'comment_sheet_controller.dart';
@@ -22,13 +23,15 @@ class CommentSheet extends StatefulWidget {
     this.topPosition = WidgetPosition.above,
     this.grabbingPosition = WidgetPosition.above,
     this.onPointerUp,
+    this.backgroundBuilder,
     this.simulationBuilder = CommentSheetState.buildSimulation,
     this.scrollPhysics = const CommentSheetBouncingScrollPhysics(
         parent: AlwaysScrollableScrollPhysics()),
+    this.onAnimationComplete,
   }) : super(key: key);
 
   final Widget child;
-  final Widget grabbing;
+  final Widget? grabbing;
   final Widget? topWidget;
   final double initTopPosition;
   final WidgetPosition topPosition;
@@ -37,6 +40,7 @@ class CommentSheet extends StatefulWidget {
   final List<Widget> slivers;
   final ScrollController? scrollController;
   final CommentSheetController commentSheetController;
+  final WidgetBuilder? backgroundBuilder;
   final double Function(
     CommentSheetInfo info,
   ) calculateTopPosition;
@@ -45,6 +49,12 @@ class CommentSheet extends StatefulWidget {
     BuildContext context,
     CommentSheetInfo info,
   )? onPointerUp;
+
+  final void Function(
+      BuildContext state,
+      CommentSheetInfo info,
+      )? onAnimationComplete;
+
   final ScrollPhysics scrollPhysics;
 
   final Simulation Function(double target, CommentSheetInfo info)
@@ -138,14 +148,20 @@ class CommentSheetState extends State<CommentSheet>
 
   TickerFuture animateToPosition(double target) {
     var simulation = widget.simulationBuilder.call(target, getInfo(_size));
-    return animationController.animateWith(simulation);
+    final ret = animationController.animateWith(simulation);
+    if (widget.onAnimationComplete != null) {
+      ret.whenComplete(() {
+        widget.onAnimationComplete?.call(context, getInfo(_size));
+      });
+    }
+    return ret;
   }
 
   static Simulation buildSimulation(double target, CommentSheetInfo info) {
     return BouncingScrollSimulation(
       spring: SpringDescription.withDampingRatio(
         mass: 0.5,
-        stiffness: 150.0,
+        stiffness: 200.0,
         ratio: 1.1,
       ),
       position: info.currentTop,
@@ -189,6 +205,14 @@ class CommentSheetState extends State<CommentSheet>
           if (widget.topPosition == WidgetPosition.below &&
               widget.topWidget != null)
             widgetTop!,
+          if (widget.backgroundBuilder != null)
+            Positioned(
+              top: top - _scrollOffset,
+              left: 0,
+              right: 0,
+              bottom: 0,
+            child: widget.backgroundBuilder!.call(context),
+          ),
           Positioned(
             top: top,
             left: 0,
@@ -213,14 +237,15 @@ class CommentSheetState extends State<CommentSheet>
               },
               child: widget.grabbingPosition == WidgetPosition.below
                   ? Column(children: [
-                      buildGrabber(),
+                    if (widget.grabbing != null) buildGrabber(),
                       buildScrollView(),
                       if (widget.bottomWidget != null) widget.bottomWidget!,
                     ])
                   : Stack(
                       children: [
                         Column(children: [
-                          Opacity(opacity: 0, child: widget.grabbing),
+                          if (widget.grabbing != null)
+                            Opacity(opacity: 0, child: widget.grabbing),
                           buildScrollView(),
                           if (widget.bottomWidget != null) widget.bottomWidget!,
                         ]),
@@ -247,6 +272,9 @@ class CommentSheetState extends State<CommentSheet>
   }
 
   Widget buildGrabber() {
+    if (widget.grabbing == null) {
+      return const SizedBox();
+    }
     return Transform.translate(
       offset: Offset(0, -_scrollOffset),
       child: GestureDetector(
@@ -255,7 +283,7 @@ class CommentSheetState extends State<CommentSheet>
             top = top + detail.delta.dy;
           });
         },
-        child: widget.grabbing,
+        child: widget.grabbing!,
       ),
     );
   }
