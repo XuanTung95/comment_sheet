@@ -1,14 +1,16 @@
+import 'dart:math';
+
 import 'package:comment_sheet/comment_sheet.dart';
 import 'package:example/screen_sheet_demo.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:sliver_tools/sliver_tools.dart';
 
 void main() {
-  runApp(MyApp());
+  runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  const MyApp();
 
   @override
   Widget build(BuildContext context) {
@@ -23,7 +25,7 @@ class MyApp extends StatelessWidget {
 }
 
 class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
+  const MyHomePage({required this.title});
 
   final String title;
 
@@ -57,6 +59,25 @@ class _MyHomePageState extends State<MyHomePage> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     ListTile(
+                      title: const Text("Open Sheet test"),
+                      onTap: () {
+                        showBottomSheet(
+                          context: context,
+                          backgroundColor: Colors.transparent,
+                          builder: (context) {
+                            return CustomScrollView(
+                              scrollBehavior: const CupertinoScrollBehavior(),
+                              slivers: [
+                                SliverToBoxAdapter(
+                                  child: buildGrabbing(context),
+                                ),
+                              buildSliverList(),
+                            ],);
+                          },
+                        );
+                      },
+                    ),
+                    ListTile(
                       title: const Text("Open Sheet"),
                       onTap: () {
                         showBottomSheet(
@@ -74,28 +95,39 @@ class _MyHomePageState extends State<MyHomePage> {
                               grabbing: Builder(builder: (context) {
                                 return buildGrabbing(context);
                               }),
-                              topWidget: const Placeholder(
-                                color: Colors.green,
-                              ),
+                              topWidget: (info) {
+                                return Positioned(
+                                  top: 0,
+                                  left: 0,
+                                  right: 0,
+                                  height: max(0, info.currentTop),
+                                  child: const Placeholder(
+                                    color: Colors.green,
+                                  ),
+                                );
+                              },
                               topPosition: WidgetPosition.below,
                               bottomWidget: buildBottomWidget(),
                               onPointerUp: (
                                 BuildContext context,
                                 CommentSheetInfo info,
                               ) {
-                                print("On Pointer Up");
+                                // print("On Pointer Up");
                               },
                               onAnimationComplete: (
                                 BuildContext context,
                                 CommentSheetInfo info,
                               ) {
-                                print("onAnimationComplete");
+                                // print("onAnimationComplete");
                                 if (info.currentTop >=
                                     info.size.maxHeight - 100) {
                                   Navigator.of(context).pop();
                                 }
                               },
                               commentSheetController: commentSheetController,
+                              onTopChanged: (top) {
+                                // print("top: $top");
+                              },
                               child: const Placeholder(),
                               backgroundBuilder: (context) {
                                 return Container(
@@ -113,7 +145,7 @@ class _MyHomePageState extends State<MyHomePage> {
                       onTap: () {
                         Navigator.push(context,
                             MaterialPageRoute(builder: (context) {
-                          return ScreenSheetDemo();
+                          return const ScreenSheetDemo();
                         }));
                       },
                     ),
@@ -141,7 +173,7 @@ class _MyHomePageState extends State<MyHomePage> {
     CommentSheetInfo info,
   ) {
     final vy = info.velocity.getVelocity().pixelsPerSecond.dy;
-    print("vy = $vy");
+    // print("vy = $vy");
     final top = info.currentTop;
     if (top > 200) {
       if (vy > 0) {
@@ -164,16 +196,14 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   Widget buildGrabbing(BuildContext context) {
-    return GrabbingWidget();
+    return const GrabbingWidget();
   }
 
   Widget buildSliverList() {
-    return SliverClip(
-      child: SliverList(
-          delegate: SliverChildBuilderDelegate((context, index) {
-        return ListItemWidget();
-      }, childCount: 10)),
-    );
+    return SliverList(
+        delegate: SliverChildBuilderDelegate((context, index) {
+          return const ListItemWidget();
+        }, childCount: 20));
   }
 }
 
@@ -193,67 +223,65 @@ class GrabbingWidget extends StatelessWidget {
           topRight: Radius.circular(12),
         ),
       ),
-      padding: EdgeInsets.only(top: 10),
+      padding: const EdgeInsets.only(top: 10),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
             width: 40,
             height: 4,
-            margin: EdgeInsets.only(top: 4),
+            margin: const EdgeInsets.only(top: 4),
             decoration: BoxDecoration(
                 color: Colors.white60,
                 borderRadius: BorderRadius.circular(100)),
           ),
-          Container(
-            child: Row(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.only(left: 15),
-                  child: Text(
-                    "Bình luận",
-                    style: TextStyle(
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white,
-                      fontSize: 16,
-                    ),
+          Row(
+            children: [
+              const Padding(
+                padding: EdgeInsets.only(left: 15),
+                child: Text(
+                  "Bình luận",
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                    fontSize: 16,
                   ),
                 ),
-                Padding(
-                  padding: const EdgeInsets.only(left: 6.0),
-                  child: Text(
-                    "48",
-                    style: TextStyle(
-                      fontWeight: FontWeight.w400,
-                      color: Colors.white70,
-                      fontSize: 13,
-                    ),
+              ),
+              const Padding(
+                padding: EdgeInsets.only(left: 6.0),
+                child: Text(
+                  "48",
+                  style: TextStyle(
+                    fontWeight: FontWeight.w400,
+                    color: Colors.white70,
+                    fontSize: 13,
                   ),
                 ),
-                Spacer(),
-                Icon(
-                  Icons.menu_sharp,
-                  size: 26,
-                  color: Colors.white,
-                ),
-                Padding(
-                  padding: const EdgeInsets.only(left: 10.0, right: 10),
-                  child: IconButton(
-                    onPressed: () {
-                      Navigator.of(context).pop();
-                    },
-                    icon: Icon(
-                      Icons.close,
-                      size: 26,
-                      color: Colors.white,
-                    ),
+              ),
+              const Spacer(),
+              const Icon(
+                Icons.menu_sharp,
+                size: 26,
+                color: Colors.white,
+              ),
+              Padding(
+                padding: const EdgeInsets.only(left: 10.0, right: 10),
+                child: IconButton(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                  },
+                  icon: const Icon(
+                    Icons.close,
+                    size: 26,
+                    color: Colors.white,
                   ),
-                )
-              ],
-            ),
+                ),
+              )
+            ],
           ),
           Container(
-            color: Color(0xFF292929),
+            color: const Color(0xFF292929),
             width: double.infinity,
             height: 1,
           ),
@@ -271,13 +299,12 @@ class ListItemWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: Colors.transparent,
+      color: const Color(0xFF0F0F0F),
       child: InkWell(
         onTap: () {
           Navigator.of(context).pop();
         },
         child: Container(
-          color: Color(0xFF0F0F0F),
           width: double.infinity,
           padding:
               const EdgeInsets.only(top: 12, bottom: 0, left: 10, right: 10),
@@ -285,8 +312,8 @@ class ListItemWidget extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Padding(
-                padding: EdgeInsets.only(left: 5, right: 10),
-                child: ClipOval(
+                padding: const EdgeInsets.only(left: 5, right: 10),
+                child: true ? const SizedBox() : ClipOval(
                   child: Image.network(
                     "https://yt3.ggpht.com/yti/AJo0G0kUnHqoybmWPJG4GNm0G-lfCiCPbEP62v5tq9PZsA=s48-c-k-c0x00ffffff-no-rj",
                     width: 25,
@@ -298,15 +325,15 @@ class ListItemWidget extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
+                    const Text(
                       'Andrea Quintanilla * 3 tháng trước',
                       style: TextStyle(
                           fontSize: 10,
                           fontWeight: FontWeight.w400,
                           color: Color(0xFFAEAEAE)),
                     ),
-                    Padding(
-                      padding: const EdgeInsets.only(top: 6, bottom: 12),
+                    const Padding(
+                      padding: EdgeInsets.only(top: 6, bottom: 12),
                       child: Text(
                         'Que buen trabajo, que buenos enganches, genial!!!!  MTV la tenes adentro, jajaja. Saludos cordiales desde Buenos Aires, Argentina, Argentina, Argentina!',
                         style: TextStyle(
@@ -316,7 +343,7 @@ class ListItemWidget extends StatelessWidget {
                       ),
                     ),
                     Row(
-                      children: [
+                      children: const [
                         Icon(
                           Icons.thumb_up_outlined,
                           size: 15,
@@ -324,7 +351,7 @@ class ListItemWidget extends StatelessWidget {
                         ),
                         Padding(
                           padding:
-                              const EdgeInsets.only(left: 16.0, right: 16.0),
+                              EdgeInsets.only(left: 16.0, right: 16.0),
                           child: Icon(
                             Icons.thumb_down_alt_outlined,
                             size: 15,

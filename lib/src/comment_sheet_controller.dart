@@ -2,6 +2,7 @@
 
 import 'package:flutter/animation.dart';
 import 'package:flutter/gestures.dart';
+import 'package:flutter/widgets.dart';
 
 import '../comment_sheet.dart';
 
@@ -15,6 +16,8 @@ class CommentSheetController {
   }
 
   VelocityTracker? get velocityTracker => _state?.velocityTracker;
+
+  BoxConstraints? get size => _state?.size;
 
   TickerFuture? animateToPosition(double target) {
     return _state?.animateToPosition(target);

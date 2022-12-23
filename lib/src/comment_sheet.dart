@@ -1,7 +1,7 @@
-
 import 'dart:math' as math;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/physics.dart';
 import 'package:flutter/widgets.dart';
 
 import 'comment_sheet_controller.dart';
@@ -20,19 +20,21 @@ class CommentSheet extends StatefulWidget {
     this.scrollController,
     this.topWidget,
     this.bottomWidget,
-    this.topPosition = WidgetPosition.above,
-    this.grabbingPosition = WidgetPosition.above,
+    this.topPosition = WidgetPosition.below,
+    this.grabbingPosition = WidgetPosition.below,
     this.onPointerUp,
     this.backgroundBuilder,
     this.simulationBuilder = CommentSheetState.buildSimulation,
     this.scrollPhysics = const CommentSheetBouncingScrollPhysics(
         parent: AlwaysScrollableScrollPhysics()),
     this.onAnimationComplete,
+    this.clipBehavior = Clip.hardEdge,
+    this.onTopChanged,
   }) : super(key: key);
 
-  final Widget child;
+  final Widget? child;
   final Widget? grabbing;
-  final Widget? topWidget;
+  final Widget Function(CommentSheetInfo info)? topWidget;
   final double initTopPosition;
   final WidgetPosition topPosition;
   final Widget? bottomWidget;
@@ -41,24 +43,21 @@ class CommentSheet extends StatefulWidget {
   final ScrollController? scrollController;
   final CommentSheetController commentSheetController;
   final WidgetBuilder? backgroundBuilder;
-  final double Function(
-    CommentSheetInfo info,
-  ) calculateTopPosition;
+  final double Function(CommentSheetInfo info) calculateTopPosition;
 
-  final void Function(
-    BuildContext context,
-    CommentSheetInfo info,
-  )? onPointerUp;
+  final void Function(BuildContext context, CommentSheetInfo info)? onPointerUp;
 
-  final void Function(
-      BuildContext state,
-      CommentSheetInfo info,
-      )? onAnimationComplete;
+  final void Function(BuildContext state, CommentSheetInfo info)?
+      onAnimationComplete;
 
   final ScrollPhysics scrollPhysics;
 
   final Simulation Function(double target, CommentSheetInfo info)
       simulationBuilder;
+
+  final Clip clipBehavior;
+
+  final void Function(double top)? onTopChanged;
 
   @override
   State<CommentSheet> createState() => CommentSheetState();
@@ -84,30 +83,32 @@ class CommentSheetState extends State<CommentSheet>
   late CommentSheetController commentSheetController;
   late AnimationController animationController;
 
-  double top = 0; // from top of stack -> top of the grabbing
+  double _top = 0; // from top of stack -> top of the grabbing
   double _scrollOffset = 0; // scrollController.offset when offset < 0
 
   BoxConstraints _size = BoxConstraints.tight(Size.zero);
+
+  BoxConstraints get size => _size;
+
   final VelocityTracker _vt = VelocityTracker.withKind(PointerDeviceKind.touch);
 
   VelocityTracker get velocityTracker => _vt;
 
-  double get fakeTop {
-    return top - _scrollOffset;
-  }
+  double get fakeTop => _top - _scrollOffset;
 
   @override
   void initState() {
     super.initState();
     setCommentSheetController();
-    top = widget.initTopPosition;
+    _top = widget.initTopPosition;
     scrollController = widget.scrollController ?? ScrollController();
     scrollController.addListener(scrollControllerListener);
 
     animationController = AnimationController.unbounded(vsync: this);
     animationController.addListener(() {
       setState(() {
-        top = animationController.value;
+        _top = animationController.value;
+        widget.onTopChanged?.call(fakeTop);
       });
     });
   }
@@ -121,12 +122,14 @@ class CommentSheetState extends State<CommentSheet>
     if (scrollController.offset <= 0) {
       setState(() {
         _scrollOffset = scrollController.offset;
+        widget.onTopChanged?.call(fakeTop);
       });
     } else {
       // scrollOffset should be 0
       if (_scrollOffset != 0) {
         setState(() {
           _scrollOffset = 0;
+          widget.onTopChanged?.call(fakeTop);
         });
       }
     }
@@ -171,9 +174,9 @@ class CommentSheetState extends State<CommentSheet>
       trailingExtent: target,
       tolerance: Tolerance(
         velocity:
-            1.0 / (0.050 * WidgetsBinding.instance.window.devicePixelRatio),
+            1.0 / (0.050 * WidgetsBinding.instance!.window.devicePixelRatio),
         // logical pixels per second
-        distance: 1.0 / WidgetsBinding.instance.window.devicePixelRatio,
+        distance: 1.0 / WidgetsBinding.instance!.window.devicePixelRatio,
         // logical pixels
       ),
     );
@@ -181,7 +184,7 @@ class CommentSheetState extends State<CommentSheet>
 
   void resetTopToCurrentScrollOffset() {
     if (_scrollOffset < 0) {
-      top = top - _scrollOffset;
+      _top = _top - _scrollOffset;
       scrollController.jumpTo(0);
       setState(() {});
     }
@@ -191,30 +194,28 @@ class CommentSheetState extends State<CommentSheet>
   Widget build(BuildContext context) {
     return LayoutBuilder(builder: (context, size) {
       _size = size;
-      Widget? widgetTop = widget.topWidget == null
-          ? null
-          : Positioned(
-              top: 0,
-              left: 0,
-              right: 0,
-              height: math.max(0, top - _scrollOffset),
-              child: widget.topWidget!);
+      final info = getInfo(size);
+      Widget? widgetTop =
+          widget.topWidget == null ? null : widget.topWidget!.call(info);
 
       return Stack(
+        clipBehavior: widget.clipBehavior,
         children: [
-          if (widget.topPosition == WidgetPosition.below &&
-              widget.topWidget != null)
-            widgetTop!,
+          if (widget.child != null) RepaintBoundary(
+            child: widget.child!
+          ),
+          if (widget.topPosition == WidgetPosition.below && widgetTop != null)
+            widgetTop,
           if (widget.backgroundBuilder != null)
             Positioned(
-              top: top - _scrollOffset,
+              top: fakeTop,
               left: 0,
               right: 0,
               bottom: 0,
-            child: widget.backgroundBuilder!.call(context),
-          ),
+              child: widget.backgroundBuilder!.call(context),
+            ),
           Positioned(
-            top: top,
+            top: _top,
             left: 0,
             right: 0,
             bottom: 0,
@@ -235,9 +236,10 @@ class CommentSheetState extends State<CommentSheet>
                   info,
                 ));
               },
-              child: widget.grabbingPosition == WidgetPosition.below
+              child: (widget.grabbingPosition == WidgetPosition.below ||
+                      widget.grabbing == null)
                   ? Column(children: [
-                    if (widget.grabbing != null) buildGrabber(),
+                      if (widget.grabbing != null) buildGrabber(),
                       buildScrollView(),
                       if (widget.bottomWidget != null) widget.bottomWidget!,
                     ])
@@ -254,9 +256,8 @@ class CommentSheetState extends State<CommentSheet>
                     ),
             ),
           ),
-          if (widget.topPosition == WidgetPosition.above &&
-              widget.topWidget != null)
-            widgetTop!,
+          if (widget.topPosition == WidgetPosition.above && widgetTop != null)
+            widgetTop,
         ],
       );
     });
@@ -266,7 +267,7 @@ class CommentSheetState extends State<CommentSheet>
     return CommentSheetInfo(
       velocity: _vt,
       size: size,
-      currentTop: top,
+      currentTop: fakeTop,
       scrollController: scrollController,
     );
   }
@@ -280,7 +281,8 @@ class CommentSheetState extends State<CommentSheet>
       child: GestureDetector(
         onVerticalDragUpdate: (detail) {
           setState(() {
-            top = top + detail.delta.dy;
+            _top = _top + detail.delta.dy;
+            widget.onTopChanged?.call(fakeTop);
           });
         },
         child: widget.grabbing!,
