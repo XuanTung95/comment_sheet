@@ -23,6 +23,8 @@ class CommentSheet extends StatefulWidget {
     this.topPosition = WidgetPosition.below,
     this.grabbingPosition = WidgetPosition.below,
     this.onPointerUp,
+    this.onPointerDown,
+    this.onPointerCancel,
     this.backgroundBuilder,
     this.simulationBuilder = CommentSheetState.buildSimulation,
     this.scrollPhysics = const CommentSheetBouncingScrollPhysics(
@@ -46,6 +48,8 @@ class CommentSheet extends StatefulWidget {
   final double Function(CommentSheetInfo info) calculateTopPosition;
 
   final void Function(BuildContext context, CommentSheetInfo info)? onPointerUp;
+  final void Function(BuildContext context, CommentSheetInfo info)? onPointerCancel;
+  final void Function()? onPointerDown;
 
   final void Function(BuildContext state, CommentSheetInfo info)?
       onAnimationComplete;
@@ -220,10 +224,20 @@ class CommentSheetState extends State<CommentSheet>
             right: 0,
             bottom: 0,
             child: Listener(
-              onPointerDown: (PointerDownEvent p) =>
-                  _vt.addPosition(p.timeStamp, p.position),
+              onPointerDown: (PointerDownEvent p) {
+                _vt.addPosition(p.timeStamp, p.position);
+                widget.onPointerDown?.call();
+              },
               onPointerMove: (detail) {
                 _vt.addPosition(detail.timeStamp, detail.position);
+              },
+              onPointerCancel: (detail) {
+                resetTopToCurrentScrollOffset();
+                final info = getInfo(size);
+                widget.onPointerCancel?.call(
+                  context,
+                  info,
+                );
               },
               onPointerUp: (detail) {
                 resetTopToCurrentScrollOffset();
@@ -387,6 +401,7 @@ class CommentSheetBouncingScrollPhysics extends ScrollPhysics {
         tolerance: tolerance,
       );
     }
+    // return null to begin an idle activity
     return null;
   }
 
