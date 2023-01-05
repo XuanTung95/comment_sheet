@@ -1,7 +1,5 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/physics.dart';
-
 
 class LoadingConfig {
   double triggerLoadingDistance;
@@ -53,7 +51,6 @@ class LoadingBouncingScrollSimulation extends BouncingScrollSimulation {
         _delayStartTime = time;
         _isDelaying = true;
         final start = DateTime.now().millisecondsSinceEpoch;
-        // print("Execute Loading");
         loadingConfig.loading.call().then((value) {
           _delayDuration =
               (DateTime.now().millisecondsSinceEpoch - start) / 1000;

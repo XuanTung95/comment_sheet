@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/physics.dart';
@@ -86,6 +87,7 @@ class CommentSheetState extends State<CommentSheet>
   late ScrollController scrollController;
   late CommentSheetController commentSheetController;
   late AnimationController animationController;
+  late final bool _createdScrollController;
 
   double _top = 0; // from top of stack -> top of the grabbing
   double _scrollOffset = 0; // scrollController.offset when offset < 0
@@ -103,10 +105,11 @@ class CommentSheetState extends State<CommentSheet>
   @override
   void initState() {
     super.initState();
-    setCommentSheetController();
+    _setCommentSheetController();
     _top = widget.initTopPosition;
     scrollController = widget.scrollController ?? ScrollController();
-    scrollController.addListener(scrollControllerListener);
+    _createdScrollController = widget.scrollController == null;
+    scrollController.addListener(_scrollControllerListener);
 
     animationController = AnimationController.unbounded(vsync: this);
     animationController.addListener(() {
@@ -117,12 +120,12 @@ class CommentSheetState extends State<CommentSheet>
     });
   }
 
-  void setCommentSheetController() {
+  void _setCommentSheetController() {
     commentSheetController = widget.commentSheetController;
     commentSheetController.state = this;
   }
 
-  void scrollControllerListener() {
+  void _scrollControllerListener() {
     if (scrollController.offset <= 0) {
       setState(() {
         _scrollOffset = scrollController.offset;
@@ -142,14 +145,17 @@ class CommentSheetState extends State<CommentSheet>
   @override
   void didUpdateWidget(covariant CommentSheet oldWidget) {
     super.didUpdateWidget(oldWidget);
-    setCommentSheetController();
+    _setCommentSheetController();
   }
 
   @override
   void dispose() {
-    scrollController.removeListener(scrollControllerListener);
+    scrollController.removeListener(_scrollControllerListener);
     commentSheetController.state = null;
     animationController.dispose();
+    if (_createdScrollController) {
+      scrollController.dispose();
+    }
     super.dispose();
   }
 
@@ -165,7 +171,7 @@ class CommentSheetState extends State<CommentSheet>
   }
 
   static Simulation buildSimulation(double target, CommentSheetInfo info) {
-    return BouncingScrollSimulation(
+    return StopBouncingScrollSimulation(
       spring: SpringDescription.withDampingRatio(
         mass: 0.5,
         stiffness: 200.0,
@@ -176,17 +182,11 @@ class CommentSheetState extends State<CommentSheet>
       // velocity: info.velocity.getVelocity().pixelsPerSecond.dy,
       leadingExtent: target,
       trailingExtent: target,
-      tolerance: Tolerance(
-        velocity:
-            1.0 / (0.050 * WidgetsBinding.instance!.window.devicePixelRatio),
-        // logical pixels per second
-        distance: 1.0 / WidgetsBinding.instance!.window.devicePixelRatio,
-        // logical pixels
-      ),
+      tolerance: Tolerance.defaultTolerance,
     );
   }
 
-  void resetTopToCurrentScrollOffset() {
+  void _resetTopToCurrentScrollOffset() {
     if (_scrollOffset < 0) {
       _top = _top - _scrollOffset;
       scrollController.jumpTo(0);
@@ -232,7 +232,7 @@ class CommentSheetState extends State<CommentSheet>
                 _vt.addPosition(detail.timeStamp, detail.position);
               },
               onPointerCancel: (detail) {
-                resetTopToCurrentScrollOffset();
+                _resetTopToCurrentScrollOffset();
                 final info = getInfo(size);
                 widget.onPointerCancel?.call(
                   context,
@@ -240,7 +240,7 @@ class CommentSheetState extends State<CommentSheet>
                 );
               },
               onPointerUp: (detail) {
-                resetTopToCurrentScrollOffset();
+                _resetTopToCurrentScrollOffset();
                 final info = getInfo(size);
                 widget.onPointerUp?.call(
                   context,
@@ -254,7 +254,7 @@ class CommentSheetState extends State<CommentSheet>
                       widget.grabbing == null)
                   ? Column(children: [
                       if (widget.grabbing != null) buildGrabber(),
-                      buildScrollView(),
+                      _buildScrollView(),
                       if (widget.bottomWidget != null) widget.bottomWidget!,
                     ])
                   : Stack(
@@ -262,7 +262,7 @@ class CommentSheetState extends State<CommentSheet>
                         Column(children: [
                           if (widget.grabbing != null)
                             Opacity(opacity: 0, child: widget.grabbing),
-                          buildScrollView(),
+                          _buildScrollView(),
                           if (widget.bottomWidget != null) widget.bottomWidget!,
                         ]),
                         buildGrabber(),
@@ -299,12 +299,17 @@ class CommentSheetState extends State<CommentSheet>
             widget.onTopChanged?.call(fakeTop);
           });
         },
+        onPanDown: (detail) {
+          if (animationController.isAnimating) {
+            animationController.stop();
+          }
+        },
         child: widget.grabbing!,
       ),
     );
   }
 
-  Widget buildScrollView() {
+  Widget _buildScrollView() {
     return Expanded(
       child: CustomScrollView(
         controller: scrollController,
@@ -392,7 +397,7 @@ class CommentSheetBouncingScrollPhysics extends ScrollPhysics {
       ScrollMetrics position, double velocity) {
     final Tolerance tolerance = this.tolerance;
     if (velocity.abs() >= tolerance.velocity || position.outOfRange) {
-      return BouncingScrollSimulation(
+      return StopBouncingScrollSimulation(
         spring: spring,
         position: position.pixels,
         velocity: velocity,
@@ -435,4 +440,142 @@ class CommentSheetBouncingScrollPhysics extends ScrollPhysics {
   // from the natural motion of lifting the finger after a scroll.
   @override
   double get dragStartDistanceMotionThreshold => 3.5;
+}
+
+class StopBouncingScrollSimulation extends Simulation {
+  /// Creates a simulation group for scrolling on iOS, with the given
+  /// parameters.
+  ///
+  /// The position and velocity arguments must use the same units as will be
+  /// expected from the [x] and [dx] methods respectively (typically logical
+  /// pixels and logical pixels per second respectively).
+  ///
+  /// The leading and trailing extents must use the unit of length, the same
+  /// unit as used for the position argument and as expected from the [x]
+  /// method (typically logical pixels).
+  ///
+  /// The units used with the provided [SpringDescription] must similarly be
+  /// consistent with the other arguments. A default set of constants is used
+  /// for the `spring` description if it is omitted; these defaults assume
+  /// that the unit of length is the logical pixel.
+  StopBouncingScrollSimulation({
+    required double position,
+    required double velocity,
+    required this.leadingExtent,
+    required this.trailingExtent,
+    required this.spring,
+    required Tolerance tolerance,
+  }) : assert(position != null),
+        assert(velocity != null),
+        assert(leadingExtent != null),
+        assert(trailingExtent != null),
+        assert(leadingExtent <= trailingExtent),
+        assert(spring != null),
+        super(tolerance: tolerance) {
+    if (position < leadingExtent) {
+      _springSimulation = _underscrollSimulation(position, velocity);
+      _springTime = double.negativeInfinity;
+    } else if (position > trailingExtent) {
+      _springSimulation = _overscrollSimulation(position, velocity);
+      _springTime = double.negativeInfinity;
+    } else {
+      // Taken from UIScrollView.decelerationRate (.normal = 0.998)
+      // 0.998^1000 = ~0.135
+      _frictionSimulation = FrictionSimulation(0.135, position, velocity);
+      final double finalX = _frictionSimulation.finalX;
+      if (velocity > 0.0 && finalX > trailingExtent) {
+        _springTime = _frictionSimulation.timeAtX(trailingExtent);
+        _springSimulation = StopSimulation(
+          trailingExtent,
+        );
+        assert(_springTime.isFinite);
+      } else if (velocity < 0.0 && finalX < leadingExtent) {
+        _springTime = _frictionSimulation.timeAtX(leadingExtent);
+        _springSimulation = StopSimulation(
+          leadingExtent,
+        );
+        assert(_springTime.isFinite);
+      } else {
+        _springTime = double.infinity;
+      }
+    }
+    assert(_springTime != null);
+  }
+
+  /// The maximum velocity that can be transferred from the inertia of a ballistic
+  /// scroll into overscroll.
+  static const double maxSpringTransferVelocity = 5000.0;
+
+  /// When [x] falls below this value the simulation switches from an internal friction
+  /// model to a spring model which causes [x] to "spring" back to [leadingExtent].
+  final double leadingExtent;
+
+  /// When [x] exceeds this value the simulation switches from an internal friction
+  /// model to a spring model which causes [x] to "spring" back to [trailingExtent].
+  final double trailingExtent;
+
+  /// The spring used to return [x] to either [leadingExtent] or [trailingExtent].
+  final SpringDescription spring;
+
+  late FrictionSimulation _frictionSimulation;
+  late Simulation _springSimulation;
+  late double _springTime;
+  double _timeOffset = 0.0;
+
+  Simulation _underscrollSimulation(double x, double dx) {
+    return ScrollSpringSimulation(spring, x, leadingExtent, dx);
+  }
+
+  Simulation _overscrollSimulation(double x, double dx) {
+    return ScrollSpringSimulation(spring, x, trailingExtent, dx);
+  }
+
+  Simulation _simulation(double time) {
+    final Simulation simulation;
+    if (time > _springTime) {
+      _timeOffset = _springTime.isFinite ? _springTime : 0.0;
+      simulation = _springSimulation;
+    } else {
+      _timeOffset = 0.0;
+      simulation = _frictionSimulation;
+    }
+    return simulation..tolerance = tolerance;
+  }
+
+  @override
+  double x(double time) => _simulation(time).x(time - _timeOffset);
+
+  @override
+  double dx(double time) => _simulation(time).dx(time - _timeOffset);
+
+  @override
+  bool isDone(double time) => _simulation(time).isDone(time - _timeOffset);
+
+  @override
+  String toString() {
+    return '${objectRuntimeType(this, 'BouncingScrollSimulation')}(leadingExtent: $leadingExtent, trailingExtent: $trailingExtent)';
+  }
+}
+
+
+class StopSimulation extends Simulation {
+  final double stop;
+
+  StopSimulation(this.stop);
+
+  @override
+  double dx(double time) {
+    return 0;
+  }
+
+  @override
+  bool isDone(double time) {
+    return true;
+  }
+
+  @override
+  double x(double time) {
+    return stop;
+  }
+
 }

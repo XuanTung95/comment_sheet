@@ -1,7 +1,6 @@
 import 'dart:math';
 
 import 'package:comment_sheet/comment_sheet.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 import 'main.dart';
@@ -29,7 +28,6 @@ class _ScreenSheetDemoState extends State<ScreenSheetDemo> {
         initTopPosition: 200,
         calculateTopPosition: calculateTopPosition,
         onTopChanged: (top) {
-          // print("top: $top");
         },
         scrollController: scrollController,
         grabbing: buildGrabbing(context),
@@ -50,17 +48,14 @@ class _ScreenSheetDemoState extends State<ScreenSheetDemo> {
             BuildContext context,
             CommentSheetInfo info,
             ) {
-          // print("On Pointer Up");
         },
         onAnimationComplete: (
             BuildContext context,
             CommentSheetInfo info,
             ) {
-          // print("onAnimationComplete");
-          if (info.currentTop >= info.size.maxHeight - 100) {
-            Navigator.of(context).pop();
-          }
         },
+        scrollPhysics: const CommentSheetBouncingScrollPhysics(
+          parent: AlwaysScrollableScrollPhysics()),
         commentSheetController: commentSheetController,
         child: const Placeholder(),
         backgroundBuilder: (context) {
@@ -77,7 +72,6 @@ class _ScreenSheetDemoState extends State<ScreenSheetDemo> {
     CommentSheetInfo info,
   ) {
     final vy = info.velocity.getVelocity().pixelsPerSecond.dy;
-    // print("vy = $vy");
     final top = info.currentTop;
     if (top > 200) {
       if (vy > 0) {

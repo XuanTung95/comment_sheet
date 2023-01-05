@@ -2,7 +2,6 @@ import 'dart:math';
 
 import 'package:comment_sheet/comment_sheet.dart';
 import 'package:example/screen_sheet_demo.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 void main() {
@@ -10,7 +9,7 @@ void main() {
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp();
+  const MyApp({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -25,7 +24,7 @@ class MyApp extends StatelessWidget {
 }
 
 class MyHomePage extends StatefulWidget {
-  const MyHomePage({required this.title});
+  const MyHomePage({Key? key, required this.title}) : super(key: key);
 
   final String title;
 
@@ -37,8 +36,6 @@ class _MyHomePageState extends State<MyHomePage> {
   final CommentSheetController commentSheetController =
       CommentSheetController();
   ScrollController scrollController = ScrollController();
-
-  // This widget is the root of your application.
 
   @override
   Widget build(BuildContext context) {
@@ -58,25 +55,6 @@ class _MyHomePageState extends State<MyHomePage> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    ListTile(
-                      title: const Text("Open Sheet test"),
-                      onTap: () {
-                        showBottomSheet(
-                          context: context,
-                          backgroundColor: Colors.transparent,
-                          builder: (context) {
-                            return CustomScrollView(
-                              scrollBehavior: const CupertinoScrollBehavior(),
-                              slivers: [
-                                SliverToBoxAdapter(
-                                  child: buildGrabbing(context),
-                                ),
-                              buildSliverList(),
-                            ],);
-                          },
-                        );
-                      },
-                    ),
                     ListTile(
                       title: const Text("Open Sheet"),
                       onTap: () {
@@ -143,10 +121,14 @@ class _MyHomePageState extends State<MyHomePage> {
                     ListTile(
                       title: const Text("Show Sheet in Stack"),
                       onTap: () {
-                        Navigator.push(context,
-                            MaterialPageRoute(builder: (context) {
-                          return const ScreenSheetDemo();
-                        }));
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) {
+                              return const ScreenSheetDemo();
+                            },
+                          ),
+                        );
                       },
                     ),
                   ],
@@ -173,7 +155,6 @@ class _MyHomePageState extends State<MyHomePage> {
     CommentSheetInfo info,
   ) {
     final vy = info.velocity.getVelocity().pixelsPerSecond.dy;
-    // print("vy = $vy");
     final top = info.currentTop;
     if (top > 200) {
       if (vy > 0) {
@@ -201,9 +182,10 @@ class _MyHomePageState extends State<MyHomePage> {
 
   Widget buildSliverList() {
     return SliverList(
-        delegate: SliverChildBuilderDelegate((context, index) {
-          return const ListItemWidget();
-        }, childCount: 20));
+      delegate: SliverChildBuilderDelegate((context, index) {
+        return const ListItemWidget();
+      }, childCount: 20),
+    );
   }
 }
 
@@ -217,7 +199,6 @@ class GrabbingWidget extends StatelessWidget {
     return Container(
       decoration: const BoxDecoration(
         color: Color(0xFF0F0F0F),
-        // color: Colors.red,
         borderRadius: BorderRadius.only(
           topLeft: Radius.circular(12),
           topRight: Radius.circular(12),
@@ -313,13 +294,13 @@ class ListItemWidget extends StatelessWidget {
             children: [
               Padding(
                 padding: const EdgeInsets.only(left: 5, right: 10),
-                child: true ? const SizedBox() : ClipOval(
-                  child: Image.network(
-                    "https://yt3.ggpht.com/yti/AJo0G0kUnHqoybmWPJG4GNm0G-lfCiCPbEP62v5tq9PZsA=s48-c-k-c0x00ffffff-no-rj",
-                    width: 25,
-                    height: 25,
-                  ),
-                ),
+                child: ClipOval(
+                        child: Image.network(
+                          "https://yt3.ggpht.com/yti/AJo0G0kUnHqoybmWPJG4GNm0G-lfCiCPbEP62v5tq9PZsA=s48-c-k-c0x00ffffff-no-rj",
+                          width: 25,
+                          height: 25,
+                        ),
+                      ),
               ),
               Expanded(
                 child: Column(
@@ -350,8 +331,7 @@ class ListItemWidget extends StatelessWidget {
                           color: Colors.white,
                         ),
                         Padding(
-                          padding:
-                              EdgeInsets.only(left: 16.0, right: 16.0),
+                          padding: EdgeInsets.only(left: 16.0, right: 16.0),
                           child: Icon(
                             Icons.thumb_down_alt_outlined,
                             size: 15,
