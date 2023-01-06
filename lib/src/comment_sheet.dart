@@ -73,12 +73,16 @@ class CommentSheetInfo {
   final VelocityTracker velocity;
   final double currentTop;
   final ScrollController scrollController;
+  final double animatingTarget;
+  final bool isAnimating;
 
   const CommentSheetInfo({
     required this.size,
     required this.velocity,
     required this.currentTop,
     required this.scrollController,
+    required this.animatingTarget,
+    required this.isAnimating,
   });
 }
 
@@ -101,6 +105,8 @@ class CommentSheetState extends State<CommentSheet>
   VelocityTracker get velocityTracker => _vt;
 
   double get fakeTop => _top - _scrollOffset;
+  bool _movingGrabbing = false;
+  double _animatingTarget = 0;
 
   @override
   void initState() {
@@ -160,6 +166,7 @@ class CommentSheetState extends State<CommentSheet>
   }
 
   TickerFuture animateToPosition(double target) {
+    _animatingTarget = target;
     var simulation = widget.simulationBuilder.call(target, getInfo(_size));
     final ret = animationController.animateWith(simulation);
     if (widget.onAnimationComplete != null) {
@@ -233,21 +240,19 @@ class CommentSheetState extends State<CommentSheet>
               },
               onPointerCancel: (detail) {
                 _resetTopToCurrentScrollOffset();
-                final info = getInfo(size);
                 widget.onPointerCancel?.call(
                   context,
-                  info,
+                  getInfo(size),
                 );
               },
               onPointerUp: (detail) {
                 _resetTopToCurrentScrollOffset();
-                final info = getInfo(size);
                 widget.onPointerUp?.call(
                   context,
-                  info,
+                  getInfo(size),
                 );
                 animateToPosition(widget.calculateTopPosition(
-                  info,
+                  getInfo(size),
                 ));
               },
               child: (widget.grabbingPosition == WidgetPosition.below ||
@@ -283,6 +288,8 @@ class CommentSheetState extends State<CommentSheet>
       size: size,
       currentTop: fakeTop,
       scrollController: scrollController,
+      animatingTarget: _animatingTarget,
+      isAnimating: animationController.isAnimating,
     );
   }
 
@@ -299,7 +306,14 @@ class CommentSheetState extends State<CommentSheet>
             widget.onTopChanged?.call(fakeTop);
           });
         },
+        onPanCancel: () {
+          _movingGrabbing = false;
+        },
+        onPanEnd: (detail) {
+          _movingGrabbing = false;
+        },
         onPanDown: (detail) {
+          _movingGrabbing = true;
           if (animationController.isAnimating) {
             animationController.stop();
           }

@@ -156,24 +156,35 @@ class _MyHomePageState extends State<MyHomePage> {
   ) {
     final vy = info.velocity.getVelocity().pixelsPerSecond.dy;
     final top = info.currentTop;
-    if (top > 200) {
+    double p0 = 0;
+    double p1 = 200;
+    double p2 = info.size.maxHeight - 100;
+
+    if (top > p1) {
       if (vy > 0) {
-        return info.size.maxHeight - 100;
-      } else if (vy < -500) {
-        return 0;
+        if (info.isAnimating && info.animatingTarget == p1 && top < p1 + 10) {
+          return p1;
+        } else {
+          return p2;
+        }
+      } else {
+        return p1;
       }
-      return 200;
-    }
-    if (top == 200) {
-      return 200;
-    } else if (top < 100) {
-      return 0;
+    } else if (top == p1) {
+      return p1;
+    } else if (top == p0) {
+      return p0;
     } else {
-      if (vy < -100) {
-        return 0;
+      if (vy > 0) {
+        if (info.isAnimating && info.animatingTarget == p0 && top < p0 + 10) {
+          return p0;
+        } else {
+          return p1;
+        }
+      } else {
+        return p0;
       }
     }
-    return 200;
   }
 
   Widget buildGrabbing(BuildContext context) {
